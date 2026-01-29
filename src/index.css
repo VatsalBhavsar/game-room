@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white;
+  font-family: "Space Grotesk", "Trebuchet MS", Arial, sans-serif;
+}
+
+.app-shell,
+#root {
+  @apply min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950;
+}
+
+.app-shell {
+  @apply min-h-screen;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}

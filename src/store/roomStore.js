@@ -1,0 +1,32 @@
+import { create } from "zustand";
+import { toast } from "sonner";
+import { getOrCreatePlayerId, getStoredPlayerName, setStoredPlayerName } from "../lib/id";
+import { setupSocketListeners } from "../ws/events";
+
+let listenersAttached = false;
+
+export const useRoomStore = create((set, get) => ({
+  socketConnected: false,
+  roomState: null,
+  roomId: "",
+  playerId: getOrCreatePlayerId(),
+  playerName: getStoredPlayerName(),
+  initSocket: () => {
+    if (listenersAttached) return;
+    setupSocketListeners({
+      onConnect: () => set({ socketConnected: true }),
+      onDisconnect: () => set({ socketConnected: false }),
+      onRoomState: (roomState) => set({ roomState, roomId: roomState.roomId }),
+      onJoined: (roomId, roomState) => set({ roomId, roomState }),
+      onError: (message) => {
+        toast.error(message || "Something went wrong");
+      },
+    });
+    listenersAttached = true;
+  },
+  setPlayerName: (name) => {
+    set({ playerName: name });
+    setStoredPlayerName(name);
+  },
+  clearRoom: () => set({ roomState: null, roomId: "" }),
+}));
