@@ -98,8 +98,8 @@ export function registerHandlers(io, socket) {
   });
 
   socket.on("SET_READY", (payload) => {
-    const { roomId, playerId, isReady } = payload || {};
-    const room = setReady({ roomId, playerId, isReady });
+    const { roomId, playerId, isReady, name } = payload || {};
+    const room = setReady({ roomId, playerId, isReady, name });
     if (!room) {
       sendError(socket, "Unable to update ready state.");
       return;

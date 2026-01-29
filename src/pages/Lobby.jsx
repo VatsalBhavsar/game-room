@@ -35,6 +35,12 @@ export default function Lobby() {
     return roomState?.players.find((p) => p.id === playerId);
   }, [roomState, playerId]);
 
+  useEffect(() => {
+    if (roomState && playerId && playerName && !me) {
+      emitRejoinRoom({ roomId: roomState.roomId, playerId, name: playerName });
+    }
+  }, [roomState, playerId, playerName, me]);
+
   const allReady = useMemo(() => {
     if (!roomState) return false;
     return roomState.players
@@ -65,15 +71,17 @@ export default function Lobby() {
               <Button
                 type="button"
                 variant={me?.isReady ? "primary" : "secondary"}
+                disabled={!me}
                 onClick={() =>
                   emitSetReady({
                     roomId: roomState.roomId,
                     playerId,
+                    name: playerName,
                     isReady: !me?.isReady,
                   })
                 }
               >
-                {me?.isReady ? "Ready" : "Not Ready"}
+                {me?.isReady ? "Ready" : "Mark As Ready"}
               </Button>
             </div>
           )}

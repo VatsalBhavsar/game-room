@@ -112,10 +112,14 @@ export function joinRoom({ roomId, playerId, name }) {
   return room;
 }
 
-export function setReady({ roomId, playerId, isReady }) {
+export function setReady({ roomId, playerId, isReady, name }) {
   const room = rooms.get(roomId);
   if (!room) return null;
-  const player = room.players.find((p) => p.id === playerId);
+  let player = room.players.find((p) => p.id === playerId);
+  if (!player && name) {
+    joinRoom({ roomId, playerId, name });
+    player = room.players.find((p) => p.id === playerId);
+  }
   if (!player) return null;
   if (player.isHost) {
     player.isReady = true;
