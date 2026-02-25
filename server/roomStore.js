@@ -174,6 +174,22 @@ export function submitAnswer({ roomId, playerId, answer }) {
   ) {
     return room;
   }
+  if (
+    room.settings.scoringMode === "fastest-correct" &&
+    question.result.correctSubmissionIds.some((submissionId) =>
+      playerSubmissions.some((submission) => submission.submissionId === submissionId)
+    )
+  ) {
+    return room;
+  }
+  if (
+    room.settings.scoringMode === "host-picks" &&
+    question.result.winnerSubmissionIds.some((submissionId) =>
+      playerSubmissions.some((submission) => submission.submissionId === submissionId)
+    )
+  ) {
+    return room;
+  }
 
   const isCorrect =
     room.settings.scoringMode === "fastest-submit" &&
@@ -303,6 +319,14 @@ export function endGame({ roomId }) {
   if (!room) return null;
   room.status = "finished";
   room.updatedAt = now();
+  return room;
+}
+
+export function closeRoom({ roomId }) {
+  const room = rooms.get(roomId);
+  if (!room) return null;
+  clearHostReassign(roomId);
+  rooms.delete(roomId);
   return room;
 }
 

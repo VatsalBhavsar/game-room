@@ -1,12 +1,20 @@
 import { connectSocket, getSocket } from "./socket";
 
-export function setupSocketListeners({ onConnect, onDisconnect, onRoomState, onError, onJoined }) {
+export function setupSocketListeners({
+  onConnect,
+  onDisconnect,
+  onRoomState,
+  onError,
+  onJoined,
+  onRoomClosed,
+}) {
   const socket = connectSocket();
   socket.on("connect", onConnect);
   socket.on("disconnect", onDisconnect);
   socket.on("ROOM_STATE", ({ roomState }) => onRoomState(roomState));
   socket.on("ROOM_CREATED", ({ roomId, roomState }) => onJoined(roomId, roomState));
   socket.on("JOINED", ({ roomId, roomState }) => onJoined(roomId, roomState));
+  socket.on("ROOM_CLOSED", ({ roomId }) => onRoomClosed?.(roomId));
   socket.on("ERROR", ({ message, code }) => onError(message, code));
   return socket;
 }
@@ -61,4 +69,8 @@ export function emitNextQuestion(payload) {
 
 export function emitEndGame(payload) {
   getSocket().emit("END_GAME", payload);
+}
+
+export function emitCloseRoom(payload, onAck) {
+  getSocket().emit("CLOSE_ROOM", payload, onAck);
 }

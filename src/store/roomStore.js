@@ -9,6 +9,8 @@ export const useRoomStore = create((set, get) => ({
   socketConnected: false,
   roomState: null,
   roomId: "",
+  roomClosedAt: 0,
+  closedRoomId: "",
   playerId: getOrCreatePlayerId(),
   playerName: getStoredPlayerName(),
   initSocket: () => {
@@ -16,8 +18,17 @@ export const useRoomStore = create((set, get) => ({
     setupSocketListeners({
       onConnect: () => set({ socketConnected: true }),
       onDisconnect: () => set({ socketConnected: false }),
-      onRoomState: (roomState) => set({ roomState, roomId: roomState.roomId }),
-      onJoined: (roomId, roomState) => set({ roomId, roomState }),
+      onRoomState: (roomState) =>
+        set({ roomState, roomId: roomState.roomId, roomClosedAt: 0, closedRoomId: "" }),
+      onJoined: (roomId, roomState) =>
+        set({ roomId, roomState, roomClosedAt: 0, closedRoomId: "" }),
+      onRoomClosed: (closedRoomId) =>
+        set({
+          roomState: null,
+          roomId: "",
+          closedRoomId: closedRoomId || "",
+          roomClosedAt: Date.now(),
+        }),
       onError: (message) => {
         toast.error(message || "Something went wrong");
       },
@@ -28,5 +39,6 @@ export const useRoomStore = create((set, get) => ({
     set({ playerName: name });
     setStoredPlayerName(name);
   },
-  clearRoom: () => set({ roomState: null, roomId: "" }),
+  clearRoom: () =>
+    set({ roomState: null, roomId: "", roomClosedAt: 0, closedRoomId: "" }),
 }));

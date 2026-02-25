@@ -57,9 +57,23 @@ export default function Game() {
   const me = roomState.players.find((player) => player.id === playerId);
   const mySubmissions = question.submissions.filter((s) => s.playerId === playerId);
   const hasCorrectSubmission = mySubmissions.some((s) => s.isCorrect);
+  const hasHostMarkedCorrect = mySubmissions.some((submission) =>
+    question.result.correctSubmissionIds.includes(submission.submissionId)
+  );
+  const hasBeenPickedWinner = mySubmissions.some((submission) =>
+    question.result.winnerSubmissionIds.includes(submission.submissionId)
+  );
+  const hasPrompt = Boolean(String(question.prompt || "").trim());
   const canSubmit =
+    hasPrompt &&
     !question.locked &&
     (!roomState.settings.lockAfterSubmit || mySubmissions.length === 0) &&
+    !(
+      roomState.settings.scoringMode === "fastest-correct" && hasHostMarkedCorrect
+    ) &&
+    !(
+      roomState.settings.scoringMode === "host-picks" && hasBeenPickedWinner
+    ) &&
     !(
       roomState.settings.scoringMode === "fastest-submit" && hasCorrectSubmission
     );
@@ -103,11 +117,18 @@ export default function Game() {
           <Input
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
-            placeholder="Type your answer"
+            placeholder={hasPrompt ? "Type your answer" : "Waiting for host prompt..."}
             disabled={!canSubmit}
           />
           <Button type="submit" disabled={!canSubmit}>
-            {hasCorrectSubmission && roomState.settings.scoringMode === "fastest-submit"
+            {hasHostMarkedCorrect &&
+            roomState.settings.scoringMode === "fastest-correct"
+              ? "Marked Correct"
+              : hasBeenPickedWinner &&
+                roomState.settings.scoringMode === "host-picks"
+              ? "Picked Winner"
+              : hasCorrectSubmission &&
+                roomState.settings.scoringMode === "fastest-submit"
               ? "Correct! Locked"
               : "Submit Answer"}
           </Button>
@@ -158,6 +179,7 @@ export default function Game() {
             correctSubmissionIds={question.result.correctSubmissionIds}
             winnerSubmissionIds={question.result.winnerSubmissionIds}
             isHost={isHost}
+            currentPlayerId={playerId}
             confirmed={question.confirmed}
             onMarkCorrect={(submissionId, isCorrect) =>
               emitMarkCorrect({

@@ -1,4 +1,5 @@
 import {
+  closeRoom,
   clearHostReassign,
   clearSocket,
   confirmResults,
@@ -25,9 +26,9 @@ async function emitRoomState(io, room) {
   const sockets = await io.in(room.roomId).fetchSockets();
   sockets.forEach((socket) => {
     const mapping = socketToPlayer.get(socket.id);
-    const includeAnswers = mapping?.playerId === room.hostId;
+    const viewerPlayerId = mapping?.playerId;
     socket.emit("ROOM_STATE", {
-      roomState: sanitizeRoomState(room, includeAnswers),
+      roomState: sanitizeRoomState(room, viewerPlayerId),
     });
   });
 }
@@ -48,7 +49,7 @@ export function registerHandlers(io, socket) {
     socket.join(room.roomId);
     socket.emit("ROOM_CREATED", {
       roomId: room.roomId,
-      roomState: sanitizeRoomState(room, true),
+      roomState: sanitizeRoomState(room, playerId),
     });
     emitRoomState(io, room);
   });
@@ -71,7 +72,7 @@ export function registerHandlers(io, socket) {
     socket.join(roomId);
     socket.emit("JOINED", {
       roomId,
-      roomState: sanitizeRoomState(room, room.hostId === playerId),
+      roomState: sanitizeRoomState(room, playerId),
     });
     emitRoomState(io, room);
   });
@@ -92,7 +93,7 @@ export function registerHandlers(io, socket) {
     socket.join(roomId);
     socket.emit("JOINED", {
       roomId,
-      roomState: sanitizeRoomState(room, room.hostId === playerId),
+      roomState: sanitizeRoomState(room, playerId),
     });
     emitRoomState(io, room);
   });
@@ -167,6 +168,11 @@ export function registerHandlers(io, socket) {
       sendError(socket, "Scoring mode does not allow marking.");
       return;
     }
+    const question = getCurrentQuestion(room);
+    if (question?.confirmed) {
+      sendError(socket, "Results already confirmed for this question.");
+      return;
+    }
     emitRoomState(io, markCorrect({ roomId, submissionId, isCorrect }));
   });
 
@@ -179,6 +185,11 @@ export function registerHandlers(io, socket) {
     }
     if (room.settings.scoringMode !== "host-picks") {
       sendError(socket, "Scoring mode does not allow picking.");
+      return;
+    }
+    const question = getCurrentQuestion(room);
+    if (question?.confirmed) {
+      sendError(socket, "Results already confirmed for this question.");
       return;
     }
     emitRoomState(io, pickWinner({ roomId, submissionId }));
@@ -227,6 +238,25 @@ export function registerHandlers(io, socket) {
     emitRoomState(io, endGame({ roomId }));
   });
 
+  socket.on("CLOSE_ROOM", async (payload, ack) => {
+    const { roomId, playerId } = payload || {};
+    const room = rooms.get(roomId);
+    if (!room || room.hostId !== playerId) {
+      sendError(socket, "Only the host can close the room.");
+      if (typeof ack === "function") {
+        ack({ ok: false, message: "Only the host can close the room." });
+      }
+      return;
+    }
+
+    io.to(roomId).emit("ROOM_CLOSED", { roomId });
+    io.in(roomId).socketsLeave(roomId);
+    closeRoom({ roomId });
+    if (typeof ack === "function") {
+      ack({ ok: true });
+    }
+  });
+
   socket.on("disconnect", () => {
     const room = handleDisconnect({ socketId: socket.id });
     clearSocket(socket.id);
@@ -236,16 +266,24 @@ export function registerHandlers(io, socket) {
   });
 }
 
-function sanitizeRoomState(room, includeAnswers) {
+function sanitizeRoomState(room, viewerPlayerId) {
   const safeRoom =
     typeof structuredClone === "function"
       ? structuredClone(room)
       : JSON.parse(JSON.stringify(room));
-  if (!includeAnswers) {
-    safeRoom.questions = safeRoom.questions.map((question) => ({
-      ...question,
-      correctAnswer: "",
-    }));
-  }
+
+  const isHostViewer = viewerPlayerId === safeRoom.hostId;
+  safeRoom.questions = safeRoom.questions.map((question) => ({
+    ...question,
+    correctAnswer: isHostViewer ? question.correctAnswer : "",
+    submissions: question.submissions.map((submission) => ({
+      ...submission,
+      isCorrect:
+        isHostViewer || submission.playerId === viewerPlayerId
+          ? submission.isCorrect
+          : false,
+    })),
+  }));
+
   return safeRoom;
 }
