@@ -5,6 +5,7 @@ import { Input } from "../components/ui/input.jsx";
 import QuestionPanel from "../components/room/QuestionPanel.jsx";
 import SubmissionsPanel from "../components/room/SubmissionsPanel.jsx";
 import Scoreboard from "../components/room/Scoreboard.jsx";
+import QuestionBankDialog from "../components/room/QuestionBankDialog.jsx";
 import { useRoomStore } from "../store/roomStore.js";
 import { getCurrentQuestion } from "../lib/scoringView.js";
 import {
@@ -24,6 +25,7 @@ export default function Game() {
   const navigate = useNavigate();
   const { initSocket, roomState, playerId, playerName } = useRoomStore();
   const [answer, setAnswer] = useState("");
+  const [questionsOpen, setQuestionsOpen] = useState(false);
 
   useEffect(() => {
     initSocket();
@@ -139,6 +141,12 @@ export default function Game() {
 
   return (
     <div className="flex h-[calc(100vh-5rem)] flex-col gap-6 overflow-hidden">
+      <QuestionBankDialog
+        open={questionsOpen}
+        onOpenChange={setQuestionsOpen}
+        roomState={roomState}
+        playerId={playerId}
+      />
       <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-white/50">Room</p>
@@ -161,6 +169,7 @@ export default function Game() {
             question={question}
             isHost={isHost}
             scoringMode={roomState.settings.scoringMode}
+            canEditHost={roomState.status !== "in_progress"}
             onSetPrompt={({ prompt, imageUrl, correctAnswer }) =>
               emitSetPrompt({
                 roomId: roomState.roomId,
@@ -199,6 +208,13 @@ export default function Game() {
           {isHost ? (
             <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-6">
               <h3 className="text-lg font-semibold">Host Controls</h3>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setQuestionsOpen(true)}
+              >
+                View Questions
+              </Button>
               <Button
                 type="button"
                 variant="secondary"

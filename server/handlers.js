@@ -1,5 +1,6 @@
 import {
   closeRoom,
+  canEditQuestionAt,
   clearHostReassign,
   clearSocket,
   confirmResults,
@@ -14,11 +15,13 @@ import {
   pickWinner,
   registerSocket,
   rooms,
+  setQuestionContent,
   setQuestionMeta,
   setReady,
   startGame,
   submitAnswer,
   socketToPlayer,
+  validateQuestionBankForStart,
 } from "./roomStore.js";
 
 async function emitRoomState(io, room) {
@@ -115,6 +118,11 @@ export function registerHandlers(io, socket) {
       sendError(socket, "Only the host can start the game.");
       return;
     }
+    const prepCheck = validateQuestionBankForStart(room);
+    if (!prepCheck.ok) {
+      sendError(socket, prepCheck.message || "Questions are not ready.");
+      return;
+    }
     const notReady = room.players.filter(
       (player) => !player.isHost && player.connected && !player.isReady
     );
@@ -132,10 +140,51 @@ export function registerHandlers(io, socket) {
       sendError(socket, "Only the host can edit prompts.");
       return;
     }
+    if (room.status === "in_progress") {
+      sendError(socket, "Use question list editor for upcoming questions.");
+      return;
+    }
     emitRoomState(
       io,
       setQuestionMeta({ roomId, prompt, imageUrl, correctAnswer })
     );
+  });
+
+  socket.on("SET_QUESTION_CONTENT", (payload) => {
+    const { roomId, playerId, roundIndex, questionIndex, prompt, imageUrl, correctAnswer } =
+      payload || {};
+    const room = rooms.get(roomId);
+    if (!room || room.hostId !== playerId) {
+      sendError(socket, "Only the host can edit questions.");
+      return;
+    }
+
+    if (
+      Number.isInteger(roundIndex) !== true ||
+      Number.isInteger(questionIndex) !== true
+    ) {
+      sendError(socket, "Invalid question index.");
+      return;
+    }
+
+    if (!canEditQuestionAt(room, roundIndex, questionIndex)) {
+      sendError(socket, "This question can no longer be edited.");
+      return;
+    }
+
+    const updated = setQuestionContent({
+      roomId,
+      roundIndex,
+      questionIndex,
+      prompt,
+      imageUrl,
+      correctAnswer,
+    });
+    if (!updated) {
+      sendError(socket, "Unable to update question.");
+      return;
+    }
+    emitRoomState(io, updated);
   });
 
   socket.on("SUBMIT_ANSWER", (payload) => {

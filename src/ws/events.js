@@ -43,6 +43,10 @@ export function emitSetPrompt(payload) {
   getSocket().emit("SET_PROMPT", payload);
 }
 
+export function emitSetQuestionContent(payload) {
+  getSocket().emit("SET_QUESTION_CONTENT", payload);
+}
+
 export function emitSubmitAnswer(payload) {
   getSocket().emit("SUBMIT_ANSWER", payload);
 }

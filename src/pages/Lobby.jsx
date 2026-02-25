@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "../components/ui/button.jsx";
 import RoomHeader from "../components/room/RoomHeader.jsx";
 import PlayersList from "../components/room/PlayersList.jsx";
+import QuestionBankDialog from "../components/room/QuestionBankDialog.jsx";
 import { useRoomStore } from "../store/roomStore.js";
 import {
   emitCloseRoom,
@@ -23,6 +24,7 @@ export default function Lobby() {
     roomClosedAt,
     closedRoomId,
   } = useRoomStore();
+  const [questionsOpen, setQuestionsOpen] = useState(false);
 
   useEffect(() => {
     initSocket();
@@ -67,6 +69,19 @@ export default function Lobby() {
       .every((player) => player.isReady);
   }, [roomState]);
 
+  const readyQuestions = useMemo(() => {
+    if (!roomState) return 0;
+    return roomState.questions.filter((question) => {
+      const hasPrompt = Boolean(String(question.prompt || "").trim());
+      if (roomState.settings.scoringMode === "fastest-submit") {
+        return hasPrompt && Boolean(String(question.correctAnswer || "").trim());
+      }
+      return hasPrompt;
+    }).length;
+  }, [roomState]);
+  const totalQuestions = roomState?.questions?.length || 0;
+  const areQuestionsReady = totalQuestions > 0 && readyQuestions === totalQuestions;
+
   if (!roomState) {
     return (
       <div className="text-white/70">
@@ -99,6 +114,12 @@ export default function Lobby() {
   return (
     <div className="flex flex-col gap-8">
       <RoomHeader roomName={roomState.roomName} roomId={roomState.roomId} />
+      <QuestionBankDialog
+        open={questionsOpen}
+        onOpenChange={setQuestionsOpen}
+        roomState={roomState}
+        playerId={playerId}
+      />
       <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <PlayersList
           players={roomState.players}
@@ -135,11 +156,25 @@ export default function Lobby() {
           {isHost && (
             <Button
               type="button"
+              variant="secondary"
               className="w-full"
-              disabled={!allReady}
+              onClick={() => setQuestionsOpen(true)}
+            >
+              Prepare Questions ({readyQuestions}/{totalQuestions})
+            </Button>
+          )}
+          {isHost && (
+            <Button
+              type="button"
+              className="w-full"
+              disabled={!allReady || !areQuestionsReady}
               onClick={() => emitStartGame({ roomId: roomState.roomId, playerId })}
             >
-              {allReady ? "Start Game" : "Waiting for ready"}
+              {!allReady
+                ? "Waiting for ready"
+                : !areQuestionsReady
+                ? "Prepare all questions"
+                : "Start Game"}
             </Button>
           )}
           {isHost && (

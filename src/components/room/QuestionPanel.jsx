@@ -8,6 +8,7 @@ export default function QuestionPanel({
   question,
   isHost,
   scoringMode,
+  canEditHost = true,
   onSetPrompt,
 }) {
   const [draft, setDraft] = useState(question?.prompt || "");
@@ -55,6 +56,8 @@ export default function QuestionPanel({
     }
   };
 
+  const showHostEditor = isHost && canEditHost;
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
       <div className="flex items-center justify-between">
@@ -65,7 +68,7 @@ export default function QuestionPanel({
           </span>
         )}
       </div>
-      {isHost ? (
+      {showHostEditor ? (
         <div className="space-y-3">
           <Input
             value={draft}
@@ -95,6 +98,11 @@ export default function QuestionPanel({
         </div>
       ) : (
         <div className="space-y-4">
+          {isHost && (
+            <p className="text-xs uppercase tracking-[0.2em] text-white/50">
+              Read-only during active question. Edit upcoming questions from View Questions.
+            </p>
+          )}
           <motion.p
             key={question.prompt}
             initial={{ opacity: 0.4, y: 6 }}

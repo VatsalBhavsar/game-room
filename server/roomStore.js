@@ -43,8 +43,17 @@ function getQuestionIndex(room) {
   );
 }
 
+function getAbsoluteQuestionIndex(room, roundIndex, questionIndex) {
+  return roundIndex * room.settings.questionsPerRound + questionIndex;
+}
+
 export function getCurrentQuestion(room) {
   const idx = getQuestionIndex(room);
+  return room.questions[idx];
+}
+
+export function getQuestionByLocation(room, roundIndex, questionIndex) {
+  const idx = getAbsoluteQuestionIndex(room, roundIndex, questionIndex);
   return room.questions[idx];
 }
 
@@ -148,6 +157,31 @@ export function setPrompt({ roomId, prompt }) {
   if (!question) return null;
   if (typeof prompt === "string") {
     question.prompt = prompt;
+  }
+  room.updatedAt = now();
+  return room;
+}
+
+export function setQuestionContent({
+  roomId,
+  roundIndex,
+  questionIndex,
+  prompt,
+  imageUrl,
+  correctAnswer,
+}) {
+  const room = rooms.get(roomId);
+  if (!room) return null;
+  const question = getQuestionByLocation(room, roundIndex, questionIndex);
+  if (!question) return null;
+  if (typeof prompt === "string") {
+    question.prompt = prompt;
+  }
+  if (typeof imageUrl === "string") {
+    question.imageUrl = imageUrl;
+  }
+  if (typeof correctAnswer === "string") {
+    question.correctAnswer = correctAnswer;
   }
   room.updatedAt = now();
   return room;
@@ -296,6 +330,47 @@ export function setQuestionMeta({ roomId, prompt, imageUrl, correctAnswer }) {
   }
   room.updatedAt = now();
   return room;
+}
+
+export function canEditQuestionAt(room, roundIndex, questionIndex) {
+  if (!room) return false;
+  if (room.status === "finished") return false;
+  if (room.status === "lobby") return true;
+
+  const currentIndex = getQuestionIndex(room);
+  const targetIndex = getAbsoluteQuestionIndex(room, roundIndex, questionIndex);
+  return targetIndex > currentIndex;
+}
+
+export function validateQuestionBankForStart(room) {
+  if (!room) {
+    return { ok: false, message: "Room not found." };
+  }
+
+  for (const question of room.questions) {
+    const questionLabel = `Round ${question.roundIndex + 1}, Question ${
+      question.questionIndex + 1
+    }`;
+
+    if (!String(question.prompt || "").trim()) {
+      return {
+        ok: false,
+        message: `${questionLabel} is missing a prompt.`,
+      };
+    }
+
+    if (
+      room.settings.scoringMode === "fastest-submit" &&
+      !String(question.correctAnswer || "").trim()
+    ) {
+      return {
+        ok: false,
+        message: `${questionLabel} is missing a correct answer.`,
+      };
+    }
+  }
+
+  return { ok: true };
 }
 
 export function nextQuestion({ roomId }) {
