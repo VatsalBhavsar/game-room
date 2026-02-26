@@ -270,7 +270,9 @@ export function registerHandlers(io, socket) {
       return;
     }
     const current = getCurrentQuestion(room);
-    if (current && !current.confirmed) {
+    const canAdvanceWithoutConfirm =
+      (current?.submissions?.length || 0) === 0;
+    if (current && !current.confirmed && !canAdvanceWithoutConfirm) {
       sendError(socket, "Confirm results before advancing.");
       return;
     }

@@ -23,7 +23,15 @@ import {
 export default function Game() {
   const { roomId } = useParams();
   const navigate = useNavigate();
-  const { initSocket, roomState, playerId, playerName } = useRoomStore();
+  const {
+    initSocket,
+    roomState,
+    playerId,
+    playerName,
+    lastErrorCode,
+    lastErrorAt,
+    clearRoom,
+  } = useRoomStore();
   const [answer, setAnswer] = useState("");
   const [questionsOpen, setQuestionsOpen] = useState(false);
 
@@ -36,6 +44,14 @@ export default function Game() {
       emitRejoinRoom({ roomId, playerId, name: playerName });
     }
   }, [roomState, roomId, playerId, playerName]);
+
+  useEffect(() => {
+    if (!lastErrorAt) return;
+    if (lastErrorCode === "ROOM_NOT_FOUND") {
+      clearRoom();
+      navigate("/");
+    }
+  }, [lastErrorCode, lastErrorAt, clearRoom, navigate]);
 
   useEffect(() => {
     if (roomState?.status === "finished") {
@@ -57,6 +73,7 @@ export default function Game() {
 
   const isHost = roomState.hostId === playerId;
   const me = roomState.players.find((player) => player.id === playerId);
+  const hostPlayer = roomState.players.find((player) => player.id === roomState.hostId);
   const mySubmissions = question.submissions.filter((s) => s.playerId === playerId);
   const hasCorrectSubmission = mySubmissions.some((s) => s.isCorrect);
   const hasHostMarkedCorrect = mySubmissions.some((submission) =>
@@ -79,6 +96,8 @@ export default function Game() {
     !(
       roomState.settings.scoringMode === "fastest-submit" && hasCorrectSubmission
     );
+  const canAdvanceQuestion =
+    question.confirmed || (question.locked && question.submissions.length === 0);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -159,7 +178,12 @@ export default function Game() {
         </div>
         <div className="flex flex-col text-right text-sm text-white/70">
           <span className="font-mono">Code {roomState.roomId}</span>
-          {me?.name && <span>You: {me.name}</span>}
+          {me?.name && (
+            <span>
+              You: {me.name}
+              {isHost ? " (host)" : hostPlayer?.name ? ` | Host: ${hostPlayer.name}` : ""}
+            </span>
+          )}
         </div>
       </div>
 
@@ -225,7 +249,7 @@ export default function Game() {
               <Button
                 type="button"
                 variant="secondary"
-                disabled={!question.confirmed}
+                disabled={!canAdvanceQuestion}
                 onClick={() => emitNextQuestion({ roomId: roomState.roomId, playerId })}
               >
                 Next Question

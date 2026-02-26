@@ -1,6 +1,7 @@
 export function getLeaderboard(roomState) {
   if (!roomState) return [];
   return roomState.players
+    .filter((player) => !player.isHost)
     .map((player) => ({
       ...player,
       score: roomState.scores[player.id] || 0,

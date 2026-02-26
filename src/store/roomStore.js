@@ -11,6 +11,8 @@ export const useRoomStore = create((set, get) => ({
   roomId: "",
   roomClosedAt: 0,
   closedRoomId: "",
+  lastErrorCode: "",
+  lastErrorAt: 0,
   playerId: getOrCreatePlayerId(),
   playerName: getStoredPlayerName(),
   initSocket: () => {
@@ -19,9 +21,23 @@ export const useRoomStore = create((set, get) => ({
       onConnect: () => set({ socketConnected: true }),
       onDisconnect: () => set({ socketConnected: false }),
       onRoomState: (roomState) =>
-        set({ roomState, roomId: roomState.roomId, roomClosedAt: 0, closedRoomId: "" }),
+        set({
+          roomState,
+          roomId: roomState.roomId,
+          roomClosedAt: 0,
+          closedRoomId: "",
+          lastErrorCode: "",
+          lastErrorAt: 0,
+        }),
       onJoined: (roomId, roomState) =>
-        set({ roomId, roomState, roomClosedAt: 0, closedRoomId: "" }),
+        set({
+          roomId,
+          roomState,
+          roomClosedAt: 0,
+          closedRoomId: "",
+          lastErrorCode: "",
+          lastErrorAt: 0,
+        }),
       onRoomClosed: (closedRoomId) =>
         set({
           roomState: null,
@@ -29,7 +45,8 @@ export const useRoomStore = create((set, get) => ({
           closedRoomId: closedRoomId || "",
           roomClosedAt: Date.now(),
         }),
-      onError: (message) => {
+      onError: (message, code) => {
+        set({ lastErrorCode: code || "", lastErrorAt: Date.now() });
         toast.error(message || "Something went wrong");
       },
     });
@@ -40,5 +57,12 @@ export const useRoomStore = create((set, get) => ({
     setStoredPlayerName(name);
   },
   clearRoom: () =>
-    set({ roomState: null, roomId: "", roomClosedAt: 0, closedRoomId: "" }),
+    set({
+      roomState: null,
+      roomId: "",
+      roomClosedAt: 0,
+      closedRoomId: "",
+      lastErrorCode: "",
+      lastErrorAt: 0,
+    }),
 }));

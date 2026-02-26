@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toPng } from "html-to-image";
 import { toast } from "sonner";
 import { Button } from "../components/ui/button.jsx";
@@ -11,13 +11,15 @@ import { emitCreateRoom } from "../ws/events.js";
 
 export default function Results() {
   const navigate = useNavigate();
+  const { roomId: routeRoomId } = useParams();
   const {
     initSocket,
     roomState,
     playerId,
     playerName,
     clearRoom,
-    roomId,
+    roomClosedAt,
+    closedRoomId,
   } = useRoomStore();
   const exportRef = useRef(null);
 
@@ -26,16 +28,30 @@ export default function Results() {
   }, [initSocket]);
 
   useEffect(() => {
-    if (!roomState && roomId) {
-      navigate(`/room/${roomId}/lobby`);
-    }
-  }, [roomState, roomId, navigate]);
-
-  useEffect(() => {
     if (roomState?.status === "lobby") {
       navigate(`/room/${roomState.roomId}/lobby`);
     }
+    if (roomState?.status === "in_progress") {
+      navigate(`/room/${roomState.roomId}/game`);
+    }
   }, [roomState, navigate]);
+
+  useEffect(() => {
+    if (roomState) return;
+    const timeout = setTimeout(() => {
+      clearRoom();
+      navigate("/");
+    }, 1500);
+    return () => clearTimeout(timeout);
+  }, [roomState, clearRoom, navigate]);
+
+  useEffect(() => {
+    if (!roomClosedAt) return;
+    if (!routeRoomId || closedRoomId === routeRoomId) {
+      clearRoom();
+      navigate("/");
+    }
+  }, [roomClosedAt, closedRoomId, routeRoomId, clearRoom, navigate]);
 
   const leaderboard = useMemo(() => getLeaderboard(roomState), [roomState]);
   const winner = leaderboard[0];

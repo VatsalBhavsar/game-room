@@ -51,13 +51,19 @@ export default function QuestionBankDialog({
   const readyCount = useMemo(() => {
     if (!roomState) return 0;
     return roomState.questions.filter((question) => {
-      const hasPrompt = Boolean(String(question.prompt || "").trim());
+      const key = makeKey(question.roundIndex, question.questionIndex);
+      const draft = drafts[key] || {
+        prompt: question.prompt || "",
+        imageUrl: question.imageUrl || "",
+        correctAnswer: question.correctAnswer || "",
+      };
+      const hasPrompt = Boolean(String(draft.prompt || "").trim());
       if (roomState.settings.scoringMode === "fastest-submit") {
-        return hasPrompt && Boolean(String(question.correctAnswer || "").trim());
+        return hasPrompt && Boolean(String(draft.correctAnswer || "").trim());
       }
       return hasPrompt;
     }).length;
-  }, [roomState]);
+  }, [roomState, drafts]);
 
   if (!roomState) return null;
 
@@ -117,6 +123,34 @@ export default function QuestionBankDialog({
         question.questionIndex + 1
       }`
     );
+  };
+
+  const saveAllQuestions = () => {
+    const editableQuestions = questions.filter((question) => canEditQuestion(question));
+    if (editableQuestions.length === 0) {
+      toast.info("No editable questions to save.");
+      return;
+    }
+
+    editableQuestions.forEach((question) => {
+      const key = makeKey(question.roundIndex, question.questionIndex);
+      const draft = drafts[key] || {
+        prompt: question.prompt || "",
+        imageUrl: question.imageUrl || "",
+        correctAnswer: question.correctAnswer || "",
+      };
+      emitSetQuestionContent({
+        roomId: roomState.roomId,
+        playerId,
+        roundIndex: question.roundIndex,
+        questionIndex: question.questionIndex,
+        prompt: draft.prompt,
+        imageUrl: draft.imageUrl,
+        correctAnswer: draft.correctAnswer,
+      });
+    });
+
+    toast.success(`Saved ${editableQuestions.length} question(s).`);
   };
 
   return (
@@ -205,8 +239,18 @@ export default function QuestionBankDialog({
           })}
         </div>
         <div className="mt-4 flex justify-end border-t border-white/10 pt-4">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={!isHost || readyCount !== totalQuestions}
+            onClick={saveAllQuestions}
+          >
+            Save All ({readyCount}/{totalQuestions})
+          </Button>
           <DialogClose asChild>
-            <Button type="button">Done</Button>
+            <Button type="button" className="ml-2">
+              Done
+            </Button>
           </DialogClose>
         </div>
       </DialogContent>
